@@ -25,13 +25,14 @@ def main():
     print_timeline(sorted_events)
 
     stale_sensor_found = check_stale_sensors(sorted_events)
-    print(stale_sensor_found)
-
     delayed_braking_found = check_delayed_braking(sorted_events)
-    print(delayed_braking_found)
-
     missing_response_found = check_missing_response(sorted_events)
-    print(missing_response_found)
+
+    print_report(
+        stale_sensor_found,
+        delayed_braking_found,
+        missing_response_found,
+    )
 
     
 def load_events(file_path):
@@ -54,8 +55,8 @@ def load_events(file_path):
 
             
 def parse_event(row):
-        row["parsed_timestamp"] = datetime.datetime.fromisoformat(row["timestamp"])
-        return row
+    row["parsed_timestamp"] = datetime.datetime.fromisoformat(row["timestamp"])
+    return row
 
 def sort_events(events):
     sorted_events = sorted(events, key=lambda event: event["parsed_timestamp"])
@@ -74,18 +75,16 @@ def check_stale_sensors(events):
 
     latest_scan_time = None
 
-    try: 
-        for event in events:
-            if event["event_type"] == "sensor_scan":
-                latest_scan_time = event["parsed_timestamp"]
+    for event in events:
+        if event["event_type"] == "sensor_scan":
+            latest_scan_time = event["parsed_timestamp"]
 
-            if event["event_type"] == "collision" and latest_scan_time is not None:
-                gap = event["parsed_timestamp"] - latest_scan_time
+        if event["event_type"] == "collision" and latest_scan_time is not None:
+            gap = event["parsed_timestamp"] - latest_scan_time
 
-                if gap > datetime.timedelta(seconds=2):
-                    return True
-    except ValueError:
-        print("Enter a valid timestamp")
+            if gap > datetime.timedelta(seconds=2):
+                return True
+
 
     return False
 
@@ -122,6 +121,23 @@ def check_missing_response(events):
             return True
 
     return False
+
+
+def print_report(stale_sensor_found, delayed_braking_found, missing_response_found):
+    print("Incident Findings")
+    print(" -----------------")
+    if stale_sensor_found:
+        print("WARNING: Sensor data was stale before the collision.")
+    else: 
+        print(":OK: Sensor data was recent before the collision.")
+    if missing_response_found:
+        print("WARNING: No brake response was recorded before the collision.")
+    else: 
+        print(":OK: A brake response was recorded before the collision.")
+    if delayed_braking_found:
+        print("WARNING: Braking occurred more than 2 seconds after obstacle detection.")
+    else: 
+        print(":OK: Braking occurred within 2 seconds of obstacle detection.")
 
 
 
