@@ -2,11 +2,28 @@ import sys
 import csv
 import datetime
 
+
+
 def main():
-    event_log = load_events()
+
+    if len(sys.argv) != 2: 
+        print("Error: provide exactly one CSV file path.")
+        sys.exit(1)
+    
+    file_path = sys.argv[1]
+    
+    try:
+        event_log = load_events(file_path)
+    except FileNotFoundError:
+        print("Error: file not found.")
+        sys.exit(1)
+    except ValueError as error:
+        print(f"Error: {error}")
+        sys.exit(1)
+
     sorted_events = sort_events(event_log)
     print_timeline(sorted_events)
-    
+
     stale_sensor_found = check_stale_sensors(sorted_events)
     print(stale_sensor_found)
 
@@ -17,20 +34,28 @@ def main():
     print(missing_response_found)
 
     
-def load_events():
+def load_events(file_path):
     events = []
-    file_path = sys.argv[1]
     with open(file_path, newline='') as csvfile:
         reader = csv.DictReader(csvfile)
-        for row in reader:
-            events.append(parse_event(row))
+        required_columns = {"timestamp", "source", "event_type", "details"}
+
+        if reader.fieldnames is None or not required_columns.issubset(reader.fieldnames):
+            raise ValueError("CSV is missing required columns.")
+        
+        for row_number, row in enumerate(reader, start=2):
+
+            try:
+                events.append(parse_event(row))
+            except ValueError:
+                raise ValueError(f"Row {row_number} has an invalid timestamp.")
+            
     return events
 
             
 def parse_event(row):
-
-    row["parsed_timestamp"] = datetime.datetime.fromisoformat(row["timestamp"])
-    return row
+        row["parsed_timestamp"] = datetime.datetime.fromisoformat(row["timestamp"])
+        return row
 
 def sort_events(events):
     sorted_events = sorted(events, key=lambda event: event["parsed_timestamp"])
@@ -48,16 +73,19 @@ def print_timeline(events):
 def check_stale_sensors(events):
 
     latest_scan_time = None
-    
-    for event in events:
-        if event["event_type"] == "sensor_scan":
-            latest_scan_time = event["parsed_timestamp"]
 
-        if event["event_type"] == "collision" and latest_scan_time is not None:
-            gap = event["parsed_timestamp"] - latest_scan_time
+    try: 
+        for event in events:
+            if event["event_type"] == "sensor_scan":
+                latest_scan_time = event["parsed_timestamp"]
 
-            if gap > datetime.timedelta(seconds=2):
-                return True
+            if event["event_type"] == "collision" and latest_scan_time is not None:
+                gap = event["parsed_timestamp"] - latest_scan_time
+
+                if gap > datetime.timedelta(seconds=2):
+                    return True
+    except ValueError:
+        print("Enter a valid timestamp")
 
     return False
 
