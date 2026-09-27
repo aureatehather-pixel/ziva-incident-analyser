@@ -1,0 +1,5 @@
+timestamp,source,event_type,details
+2026-09-27T10:00:00,lidar,sensor_scan,clear path
+2026-09-27T10:00:02,perception,obstacle_detected,warehouse shelf
+2026-09-27T10:00:05,controller,brake_command,engaged
+2026-09-27T10:00:06,safety,collision,warehouse shelf
